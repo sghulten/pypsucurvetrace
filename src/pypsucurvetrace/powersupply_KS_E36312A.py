@@ -9,23 +9,23 @@ from math import ceil, log10
 from pypsucurvetrace.curvetrace_tools import get_logger
 
 # set up logger:
-logger = get_logger('powersupply_BK')
+logger = get_logger('powersupply_KS')
 
 
-# Python dictionary of known B&K power supply models (Vmin,Vmax,Imax,Pmax,VresolutionSet,IresolutionSet,VresolutionRead,IresolutionRead,VoffsetMax,IoffsetMax,MaxSettleTime)
-BK_SPECS = {
+# Python dictionary of known Keysight power supply models (Vmin,Vmax,Imax,Pmax,VresolutionSet,IresolutionSet,VresolutionRead,IresolutionRead,VoffsetMax,IoffsetMax,MaxSettleTime)
+KS_SPECS = {
 		"9185B_HIGH":	( 0.0, 610.0,  0.35, 210,  0.02,    0.00001, 0.3,    0.00001, 0.02, 0.0001, 2.0 ),  # 9185B in "HIGH" setting, confirmed working
 		"9185B_LOW":	( 0.0, 400.0,  0.5 , 210,  0.02,    0.00001, 0.3,    0.00001, 0.02, 0.0001, 2.0 ),  # 9185B in "LOW" setting, confirmed working
 		"9120A":	    ( 0.0, 32.0,   3.0 , 96,   0.0005,  0.0001,  0.0001, 0.00001, 0.012, 0.0002, 3.0 )   # 9120A, currently testing / under construction
 }
 
-BK_TIMEOUT = 2.0
+KS_TIMEOUT = 2.0
 
-def _BK_debug(s):
+def _KS_debug(s):
 	sys.stdout.write(s)
 	sys.stdout.flush()
 
-# BK:
+# KS:
 #    .output(state)
 #    .voltage(voltage)
 #    .current(current)
@@ -43,9 +43,9 @@ def _BK_debug(s):
 #    .READIDLETIME
 #    .MODEL
 
-class BK(object):
+class KS(object):
 	"""
-	Class for B&K power supply.
+	Class for Keysight power supply.
 	"""
 
 	def __init__(self, port, debug=False, voltagemode='HIGH'):
@@ -67,15 +67,15 @@ class BK(object):
 
 			try:
 
-				_BK_debug('*** Trying baud rate = ' + str(baud) + '...\n')
+				_KS_debug('*** Trying baud rate = ' + str(baud) + '...\n')
 
 				if parse_version(serial.__version__) >= parse_version('3.3') :
 					# open port with exclusive access:
-					self._Serial = serial.Serial(port, baudrate=baud, bytesize=8, parity='N', stopbits=1, timeout=BK_TIMEOUT, exclusive = True)
+					self._Serial = serial.Serial(port, baudrate=baud, bytesize=8, parity='N', stopbits=1, timeout=KS_TIMEOUT, exclusive = True)
 
 				else:
 					# open port (can't ask for exclusive access):
-					self._Serial = serial.Serial(port, baudrate=baud, bytesize=8, parity='N', stopbits=1, timeout=BK_TIMEOUT)
+					self._Serial = serial.Serial(port, baudrate=baud, bytesize=8, parity='N', stopbits=1, timeout=KS_TIMEOUT)
 
 				time.sleep(0.2) # wait a bit unit the port is really ready
 
@@ -96,24 +96,24 @@ class BK(object):
 				time.sleep(1.5) # needs some time to calm down, BK 9120A needs a bit more than 1 second
 
 		if typestring is None:
-			raise RuntimeError('Could not connect to B&k power supply.')
+			raise RuntimeError('Could not connect to Keysight power supply.')
 				
 		try:		
 			# parse typestring:
 			if len(typestring) < 1:
-				raise RuntimeError ('No B&K power supply connected to ' + port)
-			if not ( ( typestring[0].upper() == 'B&K PRECISION') or ( typestring[0].upper() == 'BK PRECISION') ):
-				raise RuntimeError ('No B&K power supply connected to ' + port)
+				raise RuntimeError ('No Keysight power supply connected to ' + port)
+			if not ( ( typestring[0].upper() == 'Keysight PRECISION') or ( typestring[0].upper() == 'Keysight') ):
+				raise RuntimeError ('No Keysight power supply connected to ' + port)
 			if '9185B' in typestring[1]:
 				self.MODEL = '9185B_' + voltagemode.upper()
 			elif '9120A' in typestring[1]:
 				self.MODEL = '9120A'
-				logger.warning ( 'B&K 9120A communication tends to be unreliable. Be careful...' )
+				logger.warning ( 'Keysight 9120A communication tends to be unreliable. Be careful...' )
 			else:
-				logger.warning ( 'Unknown B&K model: ' + typestring[1] )
+				logger.warning ( 'Unknown Keysight model: ' + typestring[1] )
 				self.MODEL = '?????'
 
-			v = BK_SPECS[self.MODEL]
+			v = KS_SPECS[self.MODEL]
 			self.VMIN = v[0]
 			self.VMAX = v[1]
 			self.IMAX = v[2]
@@ -143,7 +143,7 @@ class BK(object):
 			if self.MODEL == '9185B_LOW':
 				self._query('SOURCE:VOLTAGE:RANGE LOW',answer=False)
 		except KeyError:
-		    raise RuntimeError('Unknown B&K model ' + self.MODEL)
+		    raise RuntimeError('Unknown Keysight model ' + self.MODEL)
 
 	
 	def _query(self, cmd, answer=True, attempt = 1, max_attempts = 10):
@@ -152,10 +152,10 @@ class BK(object):
 		"""
 		
 		if attempt > max_attempts:
-			raise RuntimeError('B&K PSU does not respond to ' + cmd + ' command after 10 attempts. Giving up...')
+			raise RuntimeError('Keysight PSU does not respond to ' + cmd + ' command after 10 attempts. Giving up...')
 		elif attempt > 1:
 			if self._debug:
-				_BK_debug('*** Retrying (attempt ' + str(attempt) + ')...')
+				_KS_debug('*** Retrying (attempt ' + str(attempt) + ')...')
 
 		# clean the pipes:
 		self._Serial.flushOutput()
@@ -163,7 +163,7 @@ class BK(object):
 
 		# send command to PSU:
 		if self._debug:
-			_BK_debug('B&K <- %s\n' % cmd)
+			_KS_debug('Keysight <- %s\n' % cmd)
 		self._Serial.write((cmd + '\n').encode())
 		self._Serial.flush() # wait until all data is written to the serial port
 
@@ -173,10 +173,10 @@ class BK(object):
 		else:
 			ans = self._Serial.readline().decode('utf-8').rstrip("\n\r")
 			if self._debug:
-				_BK_debug('B&K -> %s\n' % ans)
+				_KS_debug('Keysight -> %s\n' % ans)
 			if ans == '':
 				if self._debug:
-					_BK_debug('*** No answer from B&K PSU! Command: ' + cmd)
+					_KS_debug('*** No answer from Keysight PSU! Command: ' + cmd)
 				self._Serial.flushOutput()			
 				time.sleep(0.1)
 				self._Serial.flushInput()
@@ -261,7 +261,7 @@ class BK(object):
 		while True:
 			try:
 				if k > 10:
-					raise RuntimeException("Could not read voltage from B&K PSU!")
+					raise RuntimeException("Could not read voltage from Keysight PSU!")
 				V = float (self._query('MEASURE:VOLTAGE?'))
 				break
 			except:
@@ -276,7 +276,7 @@ class BK(object):
 		while True:
 			try:
 				if k > 10:
-					raise RuntimeException("Could not read current from B&K PSU!")
+					raise RuntimeException("Could not read current from Keysight PSU!")
 				I = float (self._query('MEASURE:CURRENT?'))
 				break
 			except:
@@ -309,7 +309,7 @@ class BK(object):
 			while True:
 				try:
 					if k > 10:
-						raise RuntimeException("Could not read output limit status from B&K PSU!")
+						raise RuntimeException("Could not read output limit status from Keysight PSU!")
 					S = self._query('OUTPUT:STATE?')
 					break
 				except:
@@ -320,6 +320,6 @@ class BK(object):
 					pass
 					
 		else:
-			raise RuntimeError('Cannot determine CV/CC mode for B&K model ' + self.MODEL)
+			raise RuntimeError('Cannot determine CV/CC mode for Keysight model ' + self.MODEL)
 
 		return (V, I, S)
